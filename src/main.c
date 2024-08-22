@@ -216,8 +216,12 @@ int WINAPI wWinMain(
             SwapBuffers(hdc);
 
             save_frame(i);
+
+            Sleep(1);
         }
         #endif
+
+        end_capture(hwnd);
     #endif
 
     #ifdef FULLSCREEN
