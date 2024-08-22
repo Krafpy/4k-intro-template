@@ -60,6 +60,9 @@ void init_capture(HWND hwnd) {
     }
 
     stbi_flip_vertically_on_write(1);
+
+    glReadBuffer(GL_FRONT);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
     #endif
 }
 
@@ -86,7 +89,7 @@ void end_capture(HWND hwnd) {
 
 DWORD WINAPI save_queued_frames() {
     // consumer
-    char fileName[1024];
+    char filename[32];
     while(1) {
         WaitForSingleObject(frame_queue.full_slots_sem, INFINITE);
         if(should_terminate) break;
@@ -97,8 +100,8 @@ DWORD WINAPI save_queued_frames() {
         ReleaseMutex(frame_queue.mutex);
 
         frame_t* frame = &frame_queue.frames[frame_index];
-        wsprintf(fileName, ".\\capture\\frame_%06d.png", frame->id);
-        stbi_write_png(fileName, XRES, YRES, 3, frame->pixels, 3*XRES);
+        wsprintf(filename, ".\\capture\\frame_%06d.png", frame->id);
+        stbi_write_png(filename, XRES, YRES, 3, frame->pixels, 3*XRES);
 
         ReleaseSemaphore(frame_queue.free_slots_sem, 1, NULL);
     }
@@ -111,8 +114,6 @@ void save_frame(int frame_id) {
     
     frame_t* frame = &frame_queue.frames[frame_queue.next];
     frame->id = frame_id;
-    glReadBuffer(GL_FRONT);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, XRES, YRES, GL_RGB, GL_UNSIGNED_BYTE, frame->pixels);
     frame_queue.next = (frame_queue.next + 1) % QUEUE_SIZE;
 
