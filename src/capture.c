@@ -58,6 +58,8 @@ void init_capture(HWND hwnd) {
             ExitProcess(-1);
         }
     }
+
+    stbi_flip_vertically_on_write(1);
     #endif
 }
 
@@ -96,7 +98,6 @@ DWORD WINAPI save_queued_frames() {
 
         frame_t* frame = &frame_queue.frames[frame_index];
         wsprintf(fileName, ".\\capture\\frame_%06d.png", frame->id);
-        stbi_flip_vertically_on_write(1);
         stbi_write_png(fileName, XRES, YRES, 3, frame->pixels, 3*XRES);
 
         ReleaseSemaphore(frame_queue.free_slots_sem, 1, NULL);
