@@ -26,10 +26,10 @@ typedef struct frame_queue_t
 {
     int next;
     int last;
-    frame_t frames[QUEUE_SIZE];
     HANDLE free_slots_sem;
     HANDLE full_slots_sem;
     HANDLE mutex;
+    frame_t frames[QUEUE_SIZE];
 } frame_queue_t;
 
 static frame_queue_t frame_queue;
