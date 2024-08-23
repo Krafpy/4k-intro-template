@@ -148,11 +148,9 @@ int WINAPI wWinMain(
             return 0;
         }
         waveOutWrite(waveHandle, &waveHeader, sizeof(waveHeader));
-
         #define INTRO_NOT_DONE musicTime.u.sample < NUM_SAMPLES
         #else
         DWORD startTime = timeGetTime(), elapsedTime = 0;
-
         #define INTRO_NOT_DONE elapsedTime < INTRO_DURATION*1000
         #endif
 
@@ -175,6 +173,8 @@ int WINAPI wWinMain(
 
             // Pass the elapsed time in seconds since startup to the shaders
             #ifdef SOUND
+            // Get the new music time
+            waveOutGetPosition(waveHandle, &musicTime, sizeof(MMTIME));
             GLfloat time = ((GLfloat)musicTime.u.sample / SAMPLE_RATE);
             #else
             elapsedTime = timeGetTime() - startTime;
@@ -185,10 +185,6 @@ int WINAPI wWinMain(
             SwapBuffers(hdc);
             
             Sleep(1); // let other processes some time (1ms)
-            // Get the new music time
-            #ifdef SOUND
-            waveOutGetPosition(waveHandle, &musicTime, sizeof(MMTIME));
-            #endif
         }
     #else
         init_capture(hwnd);
