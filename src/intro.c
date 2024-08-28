@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <GL/gl.h>
+#include <malloc.h>
 #include "glext.h" // contains type definitions for all modern OpenGL functions
 #include "shaders.inl"
 #include "config.h"
@@ -23,11 +24,14 @@ void intro_init(HWND hwnd) {
 
     #ifdef DEBUG
     GLuint result;
-    GLchar info[2048];
     glGetProgramiv(fragShader, GL_LINK_STATUS, &result);
-    glGetProgramInfoLog(fragShader, 2048, NULL, info);
     if(!result) {
+        GLint infoLength;
+        glGetProgramiv(fragShader, GL_INFO_LOG_LENGTH, &infoLength);
+        GLchar* info = (GLchar*)malloc(infoLength * sizeof(GLchar));
+        glGetProgramInfoLog(fragShader, infoLength, NULL, info);
         MessageBox(hwnd, info, "FS error", MB_OK);
+        free(info);
         ExitProcess(0);
     }
     #endif
