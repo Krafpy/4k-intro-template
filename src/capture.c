@@ -26,18 +26,18 @@ typedef struct frame_queue_t
 {
     int next;
     int last;
-    HANDLE free_slots_sem;
-    HANDLE full_slots_sem;
+    HANDLE freeSlotsSem;
+    HANDLE fullSlotsSem;
     HANDLE mutex;
     frame_t frames[QUEUE_SIZE];
 } frame_queue_t;
 
-static frame_queue_t frame_queue;
+static frame_queue_t frameQueue;
 
 static HANDLE threads[NUM_THREADS];
-static DWORD thread_ids[NUM_THREADS];
+static DWORD threadIds[NUM_THREADS];
 
-static BOOL should_terminate = FALSE;
+static BOOL shouldTerminate = FALSE;
 
 
 DWORD WINAPI save_queued_frames();
@@ -46,13 +46,13 @@ void init_capture(HWND hwnd) {
     CreateDirectory("capture", NULL);
 
     #ifdef VIDEO
-    frame_queue.next = frame_queue.last = 0;
-    frame_queue.free_slots_sem = CreateSemaphore(NULL, QUEUE_SIZE, QUEUE_SIZE, NULL);
-    frame_queue.full_slots_sem = CreateSemaphore(NULL, 0, QUEUE_SIZE, NULL);
-    frame_queue.mutex = CreateMutex(NULL, FALSE, NULL);
+    frameQueue.next = frameQueue.last = 0;
+    frameQueue.freeSlotsSem = CreateSemaphore(NULL, QUEUE_SIZE, QUEUE_SIZE, NULL);
+    frameQueue.fullSlotsSem = CreateSemaphore(NULL, 0, QUEUE_SIZE, NULL);
+    frameQueue.mutex = CreateMutex(NULL, FALSE, NULL);
 
     for(int i = 0; i < NUM_THREADS; i++) {
-        threads[i] = CreateThread(NULL, 0, save_queued_frames, NULL, 0, &thread_ids[i]);
+        threads[i] = CreateThread(NULL, 0, save_queued_frames, NULL, 0, &threadIds[i]);
         if(threads[i] == NULL) {
             MessageBox(hwnd, "Failed to create thread.", "Error", MB_OK);
             ExitProcess(-1);
@@ -68,12 +68,12 @@ void init_capture(HWND hwnd) {
 
 void end_capture(HWND hwnd) {
     #ifdef VIDEO
-    should_terminate = TRUE;
+    shouldTerminate = TRUE;
     // signal each thread to terminate
     // since NUM_THREADS and QUEUE_SIZE could be different, we need to manually
     // signal each thread and wait for it to end before signaling the next one
     for(int i = 0; i < NUM_THREADS; i++) {
-        ReleaseSemaphore(frame_queue.full_slots_sem, 1, NULL);
+        ReleaseSemaphore(frameQueue.fullSlotsSem, 1, NULL);
         WaitForMultipleObjects(NUM_THREADS, threads, FALSE, INFINITE);
     }
 
@@ -81,9 +81,9 @@ void end_capture(HWND hwnd) {
         CloseHandle(threads[i]);
     }
 
-    CloseHandle(frame_queue.free_slots_sem);
-    CloseHandle(frame_queue.full_slots_sem);
-    CloseHandle(frame_queue.mutex);
+    CloseHandle(frameQueue.freeSlotsSem);
+    CloseHandle(frameQueue.fullSlotsSem);
+    CloseHandle(frameQueue.mutex);
     #endif
 }
 
@@ -91,33 +91,33 @@ DWORD WINAPI save_queued_frames() {
     // consumer
     char filename[32];
     while(1) {
-        WaitForSingleObject(frame_queue.full_slots_sem, INFINITE);
-        if(should_terminate) break;
+        WaitForSingleObject(frameQueue.fullSlotsSem, INFINITE);
+        if(shouldTerminate) break;
 
-        WaitForSingleObject(frame_queue.mutex, INFINITE);
-        int frame_index = frame_queue.last;
-        frame_queue.last = (frame_queue.last + 1) % QUEUE_SIZE;
-        ReleaseMutex(frame_queue.mutex);
+        WaitForSingleObject(frameQueue.mutex, INFINITE);
+        int frameIndex = frameQueue.last;
+        frameQueue.last = (frameQueue.last + 1) % QUEUE_SIZE;
+        ReleaseMutex(frameQueue.mutex);
 
-        frame_t* frame = &frame_queue.frames[frame_index];
+        frame_t* frame = &frameQueue.frames[frameIndex];
         wsprintf(filename, ".\\capture\\frame_%06d.png", frame->id);
         stbi_write_png(filename, XRES, YRES, 3, frame->pixels, 3*XRES);
 
-        ReleaseSemaphore(frame_queue.free_slots_sem, 1, NULL);
+        ReleaseSemaphore(frameQueue.freeSlotsSem, 1, NULL);
     }
     return 0;
 }
 
-void save_frame(int frame_id) {
+void save_frame(int frameId) {
     // producer
-    WaitForSingleObject(frame_queue.free_slots_sem, INFINITE);
+    WaitForSingleObject(frameQueue.freeSlotsSem, INFINITE);
     
-    frame_t* frame = &frame_queue.frames[frame_queue.next];
-    frame->id = frame_id;
+    frame_t* frame = &frameQueue.frames[frameQueue.next];
+    frame->id = frameId;
     glReadPixels(0, 0, XRES, YRES, GL_RGB, GL_UNSIGNED_BYTE, frame->pixels);
-    frame_queue.next = (frame_queue.next + 1) % QUEUE_SIZE;
+    frameQueue.next = (frameQueue.next + 1) % QUEUE_SIZE;
 
-    ReleaseSemaphore(frame_queue.full_slots_sem, 1, NULL);
+    ReleaseSemaphore(frameQueue.fullSlotsSem, 1, NULL);
 }
 
 void save_audio(short* buffer, int bytes, HWND hwnd) {
