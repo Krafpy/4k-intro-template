@@ -68,14 +68,18 @@ void init_capture(HWND hwnd) {
 
 void end_capture(HWND hwnd) {
     #ifdef VIDEO
-    shouldTerminate = TRUE;
-    // signal each thread to terminate
+    shouldTerminate = TRUE; // set termination flag
     // since NUM_THREADS and QUEUE_SIZE could be different, we need to manually
     // signal each thread and wait for it to end before signaling the next one
-    for(int i = 0; i < NUM_THREADS; i++) {
+    for(DWORD nbRunning = NUM_THREADS; nbRunning > 0; nbRunning--) {
         ReleaseSemaphore(frameQueue.fullSlotsSem, 1, NULL);
-        WaitForMultipleObjects(NUM_THREADS, threads, FALSE, INFINITE);
+        DWORD index = WaitForMultipleObjects(nbRunning, threads, FALSE, INFINITE);
+        index -= WAIT_OBJECT_0;
+        HANDLE last = threads[nbRunning-1];
+        threads[nbRunning-1] = threads[index];
+        threads[index] = last;
     }
+    // WaitForMultipleObjects(NUM_THREADS, threads, TRUE, 1000);
 
     for(int i = 0; i < NUM_THREADS; i++) {
         CloseHandle(threads[i]);
@@ -92,7 +96,10 @@ DWORD WINAPI save_queued_frames() {
     char filename[32];
     while(1) {
         WaitForSingleObject(frameQueue.fullSlotsSem, INFINITE);
-        if(shouldTerminate) break;
+        if(shouldTerminate) {
+            ReleaseSemaphore(frameQueue.fullSlotsSem, 1, NULL);
+            break;
+        }
 
         WaitForSingleObject(frameQueue.mutex, INFINITE);
         int frameIndex = frameQueue.last;
